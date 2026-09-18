@@ -15,19 +15,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Terrain
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Terrain
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,7 +53,10 @@ import com.example.peaking.R
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.peaking.BuildConfig
+import com.example.peaking.data.peak.VisitedPeakRepository
+import com.example.peaking.data.peak.visitedPeakId
 import com.example.peaking.ui.theme.PEAKingTheme
+import kotlinx.coroutines.launch
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -62,6 +70,10 @@ import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.Point as GeoJsonPoint
 
 private val DefaultMapCenter = LatLng(47.3769, 8.5417) // Zurich, as a placeholder center
 private const val DefaultZoom = 10.0
@@ -105,6 +117,9 @@ private fun peakTextFieldExpression(config: PeakLayerConfig): Expression =
     )
 
 private const val PeakCrownIconId = "peak-crown-icon"
+private const val VisitedPeakCrownIconId = "visited-peak-crown-icon"
+private const val VisitedPeaksSourceId = "visited-peaks-source"
+private const val VisitedPeaksLayerId = "visited-peaks-layer"
 
 private data class SelectedPeak(
     val name: String,
@@ -205,6 +220,10 @@ private fun createCrownIcon(
 fun ExploreScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
+    val repository = remember { VisitedPeakRepository(context) }
+    val visitedPeaks by repository.observeVisitedPeaks().collectAsState(initial = emptyList())
+    val visitedPeakIds = remember(visitedPeaks) { visitedPeaks.map { it.id }.toSet() }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -265,6 +284,25 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
                             sizePx = 72
                         )
                     )
+                    style.addImage(
+                        VisitedPeakCrownIconId,
+                        createCrownIcon(
+                            tintColor = Color.rgb(230, 126, 34),
+                            haloColor = Color.WHITE,
+                            haloWidthPx = 6f,
+                            sizePx = 72
+                        )
+                    )
+
+                    style.addSource(GeoJsonSource(VisitedPeaksSourceId))
+                    style.addLayer(
+                        SymbolLayer(VisitedPeaksLayerId, VisitedPeaksSourceId).withProperties(
+                            PropertyFactory.iconImage(VisitedPeakCrownIconId),
+                            PropertyFactory.iconSize(0.6f),
+                            PropertyFactory.iconAllowOverlap(true),
+                            PropertyFactory.iconIgnorePlacement(true)
+                        )
+                    )
 
                     BuiltInPeakLayerConfigs.forEach { (layerId, config) ->
                         val layer = style.getLayer(layerId) as? SymbolLayer ?: return@forEach
@@ -307,6 +345,13 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
                         style.removeLayer(layer)
                         style.addLayer(layer)
                     }
+
+                    // Re-raise the visited-peaks overlay above the built-in layers, which were
+                    // just moved to the top of the draw stack above.
+                    (style.getLayer(VisitedPeaksLayerId))?.let { visitedLayer ->
+                        style.removeLayer(visitedLayer)
+                        style.addLayer(visitedLayer)
+                    }
                     mapLibreMap = map
                 }
             }
@@ -339,6 +384,15 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    LaunchedEffect(mapLibreMap, visitedPeaks) {
+        val style = mapLibreMap?.style ?: return@LaunchedEffect
+        val source = style.getSourceAs<GeoJsonSource>(VisitedPeaksSourceId) ?: return@LaunchedEffect
+        val features = visitedPeaks.map { peak ->
+            Feature.fromGeometry(GeoJsonPoint.fromLngLat(peak.longitude, peak.latitude))
+        }
+        source.setGeoJson(FeatureCollection.fromFeatures(features))
+    }
+
     LaunchedEffect(mapLibreMap, peaksVisible) {
         val style = mapLibreMap?.style ?: return@LaunchedEffect
         val visibility = if (peaksVisible) Property.VISIBLE else Property.NONE
@@ -347,6 +401,9 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
                 PropertyFactory.visibility(visibility)
             )
         }
+        (style.getLayer(VisitedPeaksLayerId) as? SymbolLayer)?.setProperties(
+            PropertyFactory.visibility(visibility)
+        )
     }
 
     fun centerOnCurrentLocation() {
@@ -429,8 +486,20 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
         if (peak != null && screenPos != null) {
             val density = LocalDensity.current
             val bubbleGapPx = with(density) { PeakBubbleMarkerGap.toPx() }
+            val peakId = remember(peak) { visitedPeakId(peak.name, peak.position.latitude, peak.position.longitude) }
+            val isVisited = visitedPeakIds.contains(peakId)
             PeakSpeechBubble(
                 peak = peak,
+                isVisited = isVisited,
+                onToggleVisited = {
+                    coroutineScope.launch {
+                        if (isVisited) {
+                            repository.markNotVisited(peak.name, peak.position.latitude, peak.position.longitude)
+                        } else {
+                            repository.markVisited(peak.name, peak.position.latitude, peak.position.longitude)
+                        }
+                    }
+                },
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .layout { measurable, constraints ->
@@ -458,7 +527,12 @@ private val PeakBubbleCornerRadius = 12.dp
  * the tail doesn't overlap the icon), with the bubble body growing upward from there.
  */
 @Composable
-private fun PeakSpeechBubble(peak: SelectedPeak, modifier: Modifier = Modifier) {
+private fun PeakSpeechBubble(
+    peak: SelectedPeak,
+    isVisited: Boolean,
+    onToggleVisited: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val bubbleColor = MaterialTheme.colorScheme.surface
     Column(
         modifier = modifier
@@ -501,6 +575,21 @@ private fun PeakSpeechBubble(peak: SelectedPeak, modifier: Modifier = Modifier) 
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        OutlinedButton(
+            onClick = onToggleVisited,
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Icon(
+                imageVector = if (isVisited) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 6.dp)
+            )
+            Text(
+                text = stringResource(
+                    if (isVisited) R.string.peak_detail_visited else R.string.peak_detail_mark_visited
+                )
             )
         }
     }
