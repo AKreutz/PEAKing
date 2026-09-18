@@ -1,5 +1,6 @@
 package com.example.peaking.ui.hike
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -19,6 +20,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +34,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,7 +97,12 @@ private fun SelectedPeaksCard(peakNames: List<String>, modifier: Modifier = Modi
 }
 
 @Composable
-fun HikeScreen(modifier: Modifier = Modifier) {
+fun HikeScreen(
+    modifier: Modifier = Modifier,
+    onHikeInProgressChanged: (Boolean) -> Unit = {},
+    discardRequested: Boolean = false,
+    onDiscardHandled: () -> Unit = {}
+) {
     var hikeStarted by remember { mutableStateOf(false) }
     var showConfetti by remember { mutableStateOf(false) }
     var selectedPeaks by remember { mutableStateOf<List<HikeSelectedPeak>>(emptyList()) }
@@ -109,6 +117,17 @@ fun HikeScreen(modifier: Modifier = Modifier) {
         showConfetti = false
         selectedPeaks = emptyList()
         showFinishDialog = false
+    }
+
+    LaunchedEffect(hikeStarted) {
+        onHikeInProgressChanged(hikeStarted)
+    }
+
+    LaunchedEffect(discardRequested) {
+        if (discardRequested) {
+            discardHike()
+            onDiscardHandled()
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -137,7 +156,24 @@ fun HikeScreen(modifier: Modifier = Modifier) {
                 )
 
                 Button(
-                    onClick = { showFinishDialog = true },
+                    onClick = {
+                        if (selectedPeaks.isEmpty()) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.hike_finish_no_peaks_message),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            showFinishDialog = true
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (selectedPeaks.isEmpty()) {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        }
+                    ),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(24.dp)

@@ -35,4 +35,8 @@
     <string name="hike_finish_dialog_description_label">Description (optional)</string>
     <string name="hike_finish_dialog_confirm">Save</string>
     <string name="hike_finish_dialog_cancel">Cancel</string>
+    <string name="hike_discard_dialog_title">Discard this Hike?</string>
+    <string name="hike_discard_dialog_confirm">Discard</string>
+    <string name="hike_discard_dialog_cancel">Cancel</string>
+    <string name="hike_finish_no_peaks_message">Add at least one peak</string>
 </resources>
