@@ -4,17 +4,22 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * A peak the user has marked as visited. Map tile features carry no stable OSM id in the data
- * available to the app (only name/elevation/coordinates), so [id] is derived from the peak's
- * name and its coordinates rounded to ~11m - see [visitedPeakId].
+ * A single recorded visit to a peak. A peak can be visited more than once, so [peakId] (the
+ * peak's identity) is not the primary key - each visit gets its own row, keyed by [visitId].
+ * Map tile features carry no stable OSM id in the data available to the app (only
+ * name/elevation/coordinates), so [peakId] is derived from the peak's name and its coordinates
+ * rounded to ~11m - see [visitedPeakId].
  */
 @Entity(tableName = "visited_peaks")
 data class VisitedPeak(
-    @PrimaryKey val id: String,
+    @PrimaryKey(autoGenerate = true) val visitId: Long = 0,
+    val peakId: String,
     val name: String,
     val latitude: Double,
     val longitude: Double,
-    val visitedAtEpochMillis: Long
+    val visitedAtEpochMillis: Long,
+    val visitDateEpochMillis: Long = visitedAtEpochMillis,
+    val description: String = ""
 )
 
 /**

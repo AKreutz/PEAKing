@@ -12,12 +12,12 @@ interface VisitedPeakDao {
     @Query("SELECT * FROM visited_peaks")
     fun observeAll(): Flow<List<VisitedPeak>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(peak: VisitedPeak)
 
     @Delete
     suspend fun delete(peak: VisitedPeak)
 
-    @Query("DELETE FROM visited_peaks WHERE id = :id")
-    suspend fun deleteById(id: String)
+    @Query("DELETE FROM visited_peaks WHERE peakId = :peakId")
+    suspend fun deleteAllByPeakId(peakId: String)
 }

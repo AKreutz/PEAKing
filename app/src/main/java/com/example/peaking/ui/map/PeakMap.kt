@@ -271,7 +271,7 @@ fun PeakMap(
     val coroutineScope = rememberCoroutineScope()
     val repository = remember { VisitedPeakRepository(context) }
     val visitedPeaks by repository.observeVisitedPeaks().collectAsState(initial = emptyList())
-    val visitedPeakIds = remember(visitedPeaks) { visitedPeaks.map { it.id }.toSet() }
+    val visitedPeakIds = remember(visitedPeaks) { visitedPeaks.map { it.peakId }.toSet() }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -454,7 +454,7 @@ fun PeakMap(
         // Selected-but-not-yet-persisted peaks (picked during an in-progress hike) get the same
         // orange tint as already-visited ones, so they're merged into the same overlay source,
         // deduplicated by id since a peak can be both already visited and re-tapped mid-hike.
-        val highlightedPositions = visitedPeaks.associate { it.id to (it.latitude to it.longitude) } +
+        val highlightedPositions = visitedPeaks.associate { it.peakId to (it.latitude to it.longitude) } +
             selectedPeaks.associate { it.id to (it.latitude to it.longitude) }
         val features = highlightedPositions.values.map { (latitude, longitude) ->
             Feature.fromGeometry(GeoJsonPoint.fromLngLat(longitude, latitude))

@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [VisitedPeak::class], version = 1, exportSchema = false)
+@Database(entities = [VisitedPeak::class], version = 3, exportSchema = false)
 abstract class PeakingDatabase : RoomDatabase() {
     abstract fun visitedPeakDao(): VisitedPeakDao
 
@@ -19,7 +19,7 @@ abstract class PeakingDatabase : RoomDatabase() {
                     context.applicationContext,
                     PeakingDatabase::class.java,
                     "peaking.db"
-                ).build().also { instance = it }
+                ).fallbackToDestructiveMigration().build().also { instance = it }
             }
     }
 }

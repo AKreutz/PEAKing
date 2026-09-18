@@ -13,11 +13,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,6 +53,8 @@ import com.example.peaking.ui.map.HikeSelectedPeak
 import com.example.peaking.ui.map.PeakMap
 import com.example.peaking.ui.theme.PEAKingTheme
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 private const val ButtonFadeOutDurationMillis = 400
 private const val ButtonFadeOutDelayMillis = 700
@@ -82,10 +98,18 @@ fun HikeScreen(modifier: Modifier = Modifier) {
     var hikeStarted by remember { mutableStateOf(false) }
     var showConfetti by remember { mutableStateOf(false) }
     var selectedPeaks by remember { mutableStateOf<List<HikeSelectedPeak>>(emptyList()) }
+    var showFinishDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val repository = remember { VisitedPeakRepository(context) }
+
+    fun discardHike() {
+        hikeStarted = false
+        showConfetti = false
+        selectedPeaks = emptyList()
+        showFinishDialog = false
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -113,17 +137,7 @@ fun HikeScreen(modifier: Modifier = Modifier) {
                 )
 
                 Button(
-                    onClick = {
-                        val peaksToSave = selectedPeaks
-                        coroutineScope.launch {
-                            peaksToSave.forEach { peak ->
-                                repository.markVisited(peak.name, peak.latitude, peak.longitude)
-                            }
-                        }
-                        hikeStarted = false
-                        showConfetti = false
-                        selectedPeaks = emptyList()
-                    },
+                    onClick = { showFinishDialog = true },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(24.dp)
@@ -177,6 +191,104 @@ fun HikeScreen(modifier: Modifier = Modifier) {
                     ConfettiBurst(modifier = Modifier.fillMaxSize())
                 }
             }
+        }
+
+        if (showFinishDialog) {
+            FinishHikeDialog(
+                onConfirm = { dateEpochMillis, description ->
+                    val peaksToSave = selectedPeaks
+                    coroutineScope.launch {
+                        peaksToSave.forEach { peak ->
+                            repository.markVisited(
+                                name = peak.name,
+                                latitude = peak.latitude,
+                                longitude = peak.longitude,
+                                visitDateEpochMillis = dateEpochMillis,
+                                description = description
+                            )
+                        }
+                    }
+                    discardHike()
+                },
+                onDismiss = { discardHike() }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FinishHikeDialog(
+    onConfirm: (dateEpochMillis: Long, description: String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = System.currentTimeMillis())
+    var description by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+    val selectedDateText = datePickerState.selectedDateMillis?.let { dateFormatter.format(it) } ?: ""
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.hike_finish_dialog_title)) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = selectedDateText,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(text = stringResource(R.string.hike_finish_dialog_date_label)) },
+                    trailingIcon = {
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(imageVector = Icons.Filled.CalendarMonth, contentDescription = null)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text(text = stringResource(R.string.hike_finish_dialog_description_label)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    minLines = 3,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm(datePickerState.selectedDateMillis ?: System.currentTimeMillis(), description)
+                }
+            ) {
+                Text(text = stringResource(R.string.hike_finish_dialog_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.hike_finish_dialog_cancel))
+            }
+        }
+    )
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(text = stringResource(R.string.hike_finish_dialog_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text(text = stringResource(R.string.hike_finish_dialog_cancel))
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

@@ -33,7 +33,7 @@ fun MyPeaksScreen(modifier: Modifier = Modifier) {
     val repository = remember { VisitedPeakRepository(context) }
     val visitedPeaks by repository.observeVisitedPeaks().collectAsState(initial = emptyList())
     val sortedPeaks = remember(visitedPeaks) {
-        visitedPeaks.sortedByDescending { it.visitedAtEpochMillis }
+        visitedPeaks.sortedByDescending { it.visitDateEpochMillis }
     }
 
     if (sortedPeaks.isEmpty()) {
@@ -45,7 +45,7 @@ fun MyPeaksScreen(modifier: Modifier = Modifier) {
         }
     } else {
         LazyColumn(modifier = modifier.fillMaxSize()) {
-            items(sortedPeaks, key = { it.id }) { peak ->
+            items(sortedPeaks, key = { it.visitId }) { peak ->
                 VisitedPeakRow(peak)
                 HorizontalDivider()
             }
@@ -63,10 +63,18 @@ private fun VisitedPeakRow(peak: VisitedPeak) {
     ) {
         Text(text = peak.name, style = MaterialTheme.typography.titleMedium)
         Text(
-            text = dateFormat.format(Date(peak.visitedAtEpochMillis)),
+            text = dateFormat.format(Date(peak.visitDateEpochMillis)),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (peak.description.isNotBlank()) {
+            Text(
+                text = peak.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
     }
 }
 
