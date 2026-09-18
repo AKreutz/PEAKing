@@ -19,7 +19,8 @@ data class VisitedPeak(
     val longitude: Double,
     val visitedAtEpochMillis: Long,
     val visitDateEpochMillis: Long = visitedAtEpochMillis,
-    val description: String = ""
+    val description: String = "",
+    val elevationMeters: Double? = null
 )
 
 /**

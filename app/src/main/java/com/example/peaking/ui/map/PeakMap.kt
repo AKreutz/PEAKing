@@ -72,6 +72,7 @@ import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.Point as GeoJsonPoint
 import java.text.DateFormat
 import java.util.Date
+import kotlin.math.roundToInt
 
 private val DefaultMapCenter = LatLng(47.3769, 8.5417) // Zurich, as a placeholder center
 private const val DefaultZoom = 10.0
@@ -100,6 +101,14 @@ private val BuiltInPeakLayerConfigs = mapOf(
     "mountain_volcano-us" to PeakLayerConfig("volcano", hasCustomaryFt = true, elevationField = "ele_ft", elevationUnitSuffix = "ft")
 )
 
+private const val MetersPerFoot = 0.3048
+
+/**
+ * Renders a stored elevation (always metres - see [MetersPerFoot]) for display, rounded to the
+ * nearest metre since the source data has no finer precision worth showing.
+ */
+fun formatElevationMeters(elevationMeters: Double): String = "${elevationMeters.roundToInt()}m"
+
 // Name on its own line, then elevation ("1234m") on a second line only when the elevation
 // field is actually present on the feature — some named peak nodes in OSM have no ele tag.
 private fun peakTextFieldExpression(config: PeakLayerConfig): Expression =
@@ -121,7 +130,7 @@ private const val VisitedPeaksLayerId = "visited-peaks-layer"
 
 private data class SelectedPeak(
     val name: String,
-    val elevationText: String?,
+    val elevationMeters: Double?,
     val position: LatLng
 )
 
@@ -132,7 +141,8 @@ data class HikeSelectedPeak(
     val id: String,
     val name: String,
     val latitude: Double,
-    val longitude: Double
+    val longitude: Double,
+    val elevationMeters: Double?
 )
 
 /**
@@ -161,16 +171,16 @@ private fun queryTappedPeak(map: MapLibreMap, screenPoint: android.graphics.Poin
     val elevationConfig = BuiltInPeakLayerConfigs.values.firstOrNull { config ->
         feature.hasNonNullValueForProperty(config.elevationField)
     }
-    val elevationText = elevationConfig?.let {
-        val value = feature.getNumberProperty(it.elevationField)
-        "$value${it.elevationUnitSuffix}"
+    val elevationMeters = elevationConfig?.let {
+        val value = feature.getNumberProperty(it.elevationField).toDouble()
+        if (it.hasCustomaryFt) value * MetersPerFoot else value
     }
 
     val position = (feature.geometry() as? org.maplibre.geojson.Point)?.let {
         LatLng(it.latitude(), it.longitude())
     } ?: return null
 
-    return SelectedPeak(name = name, elevationText = elevationText, position = position)
+    return SelectedPeak(name = name, elevationMeters = elevationMeters, position = position)
 }
 
 /**
@@ -315,7 +325,8 @@ fun PeakMap(
                                     id = visitedPeakId(peak.name, peak.position.latitude, peak.position.longitude),
                                     name = peak.name,
                                     latitude = peak.position.latitude,
-                                    longitude = peak.position.longitude
+                                    longitude = peak.position.longitude,
+                                    elevationMeters = peak.elevationMeters
                                 )
                             )
                         }
@@ -639,9 +650,9 @@ private fun PeakSpeechBubble(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
-        if (peak.elevationText != null) {
+        if (peak.elevationMeters != null) {
             Text(
-                text = stringResource(R.string.peak_detail_elevation, peak.elevationText),
+                text = stringResource(R.string.peak_detail_elevation, formatElevationMeters(peak.elevationMeters)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp)

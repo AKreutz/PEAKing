@@ -13,7 +13,8 @@ class VisitedPeakRepository(context: Context) {
         latitude: Double,
         longitude: Double,
         visitDateEpochMillis: Long = System.currentTimeMillis(),
-        description: String = ""
+        description: String = "",
+        elevationMeters: Double? = null
     ) {
         dao.insert(
             VisitedPeak(
@@ -23,8 +24,26 @@ class VisitedPeakRepository(context: Context) {
                 longitude = longitude,
                 visitedAtEpochMillis = System.currentTimeMillis(),
                 visitDateEpochMillis = visitDateEpochMillis,
+                description = description,
+                elevationMeters = elevationMeters
+            )
+        )
+    }
+
+    suspend fun updateVisit(
+        visit: VisitedPeak,
+        visitDateEpochMillis: Long,
+        description: String
+    ) {
+        dao.update(
+            visit.copy(
+                visitDateEpochMillis = visitDateEpochMillis,
                 description = description
             )
         )
+    }
+
+    suspend fun deleteVisit(visit: VisitedPeak) {
+        dao.delete(visit)
     }
 }

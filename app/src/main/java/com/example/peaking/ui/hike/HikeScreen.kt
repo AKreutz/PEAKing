@@ -204,7 +204,8 @@ fun HikeScreen(modifier: Modifier = Modifier) {
                                 latitude = peak.latitude,
                                 longitude = peak.longitude,
                                 visitDateEpochMillis = dateEpochMillis,
-                                description = description
+                                description = description,
+                                elevationMeters = peak.elevationMeters
                             )
                         }
                     }
