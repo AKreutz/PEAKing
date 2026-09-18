@@ -1,0 +1,30 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="411dp"
+    android:height="915dp"
+    android:viewportWidth="411"
+    android:viewportHeight="915">
+    <!-- Signature crown mark, echoed faintly above the tallest peaks -->
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.09"
+        android:pathData="M154,610 L154,578 L161.5,594 L169,578 L176.825,594 L184.5,578 L183.45,610 Z" />
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.07"
+        android:pathData="M374,685 L374,663 L379.5,675 L385,663 L390.7,675 L396.5,663 L395.7,685 Z" />
+    <!-- Far range -->
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.08"
+        android:pathData="M0,710 L60,655 L110,690 L170,620 L230,685 L280,640 L340,695 L411,645 L411,915 L0,915 Z" />
+    <!-- Mid range -->
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.11"
+        android:pathData="M0,755 L45,700 L95,740 L150,655 L205,730 L255,680 L300,735 L360,670 L411,715 L411,915 L0,915 Z" />
+    <!-- Near range -->
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.15"
+        android:pathData="M0,915 L0,780 L55,700 L100,755 L165,670 L220,750 L275,690 L330,760 L390,695 L411,725 L411,915 Z" />
+</vector>

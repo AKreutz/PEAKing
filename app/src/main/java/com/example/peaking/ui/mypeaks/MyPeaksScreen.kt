@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.example.peaking.R
 import com.example.peaking.data.peak.VisitedPeak
 import com.example.peaking.data.peak.VisitedPeakRepository
+import com.example.peaking.ui.common.ScreenBackground
 import com.example.peaking.ui.map.CrownIcon
 import com.example.peaking.ui.map.formatElevationMeters
 import com.example.peaking.ui.theme.PEAKingTheme
@@ -120,36 +121,38 @@ fun MyPeaksScreen(modifier: Modifier = Modifier) {
     var visitPendingEdit by remember { mutableStateOf<VisitedPeak?>(null) }
     var visitPendingDelete by remember { mutableStateOf<VisitedPeak?>(null) }
 
-    if (peakGroups.isEmpty()) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = stringResource(R.string.my_peaks_empty),
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-    } else {
-        Column(modifier = modifier.fillMaxSize()) {
-            Text(
-                text = stringResource(
-                    R.string.my_peaks_count,
-                    peakGroups.size,
-                    stringResource(
-                        if (peakGroups.size == 1) R.string.my_peaks_peak_singular else R.string.my_peaks_peak_plural
-                    )
-                ),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-            )
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                sections.forEach { section ->
-                    item(key = "header-${section.rangeStartMeters ?: "unknown"}") {
-                        ElevationSectionHeader(section.rangeStartMeters)
-                    }
-                    items(section.peaks, key = { it.peakId }) { group ->
-                        PeakGroupCard(
-                            group = group,
-                            onEditVisit = { visitPendingEdit = it }
+    ScreenBackground(modifier = modifier) {
+        if (peakGroups.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = stringResource(R.string.my_peaks_empty),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = stringResource(
+                        R.string.my_peaks_count,
+                        peakGroups.size,
+                        stringResource(
+                            if (peakGroups.size == 1) R.string.my_peaks_peak_singular else R.string.my_peaks_peak_plural
                         )
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    sections.forEach { section ->
+                        item(key = "header-${section.rangeStartMeters ?: "unknown"}") {
+                            ElevationSectionHeader(section.rangeStartMeters)
+                        }
+                        items(section.peaks, key = { it.peakId }) { group ->
+                            PeakGroupCard(
+                                group = group,
+                                onEditVisit = { visitPendingEdit = it }
+                            )
+                        }
                     }
                 }
             }

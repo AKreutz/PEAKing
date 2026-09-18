@@ -51,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.peaking.R
 import com.example.peaking.data.peak.VisitedPeakRepository
+import com.example.peaking.ui.common.ScreenBackground
 import com.example.peaking.ui.map.CrownIcon
 import com.example.peaking.ui.map.HikeSelectedPeak
 import com.example.peaking.ui.map.PeakMap
@@ -207,24 +208,26 @@ fun HikeScreen(
                 )
             )
         ) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Button(
-                    onClick = {
-                        showConfetti = true
-                        hikeStarted = true
-                    },
-                    modifier = Modifier
-                        .width(220.dp)
-                        .height(72.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.hike_go_on_a_hike),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                }
+            ScreenBackground {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Button(
+                        onClick = {
+                            showConfetti = true
+                            hikeStarted = true
+                        },
+                        modifier = Modifier
+                            .width(220.dp)
+                            .height(72.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.hike_go_on_a_hike),
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
 
-                if (showConfetti) {
-                    ConfettiBurst(modifier = Modifier.fillMaxSize())
+                    if (showConfetti) {
+                        ConfettiBurst(modifier = Modifier.fillMaxSize())
+                    }
                 }
             }
         }
