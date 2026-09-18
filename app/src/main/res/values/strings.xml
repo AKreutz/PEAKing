@@ -3,4 +3,5 @@
     <string name="explore_center_on_location">Center on my location</string>
     <string name="explore_show_peaks">Show peak markers</string>
     <string name="explore_hide_peaks">Hide peak markers</string>
+    <string name="peak_detail_elevation">Elevation: %1$s</string>
 </resources>

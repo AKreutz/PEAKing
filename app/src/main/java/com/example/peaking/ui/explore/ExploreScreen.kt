@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Terrain
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -30,9 +31,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path as ComposePath
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -98,6 +105,50 @@ private fun peakTextFieldExpression(config: PeakLayerConfig): Expression =
     )
 
 private const val PeakCrownIconId = "peak-crown-icon"
+
+private data class SelectedPeak(
+    val name: String,
+    val elevationText: String?,
+    val position: LatLng
+)
+
+/**
+ * Queries the built-in peak layers at the tapped screen point (with a small touch-target
+ * padding, since the crown icon bitmap is smaller than a comfortable tap area) and extracts
+ * the name/elevation from whichever feature is on top, if any.
+ */
+private fun queryTappedPeak(map: MapLibreMap, screenPoint: android.graphics.PointF): SelectedPeak? {
+    val touchRadiusPx = 24f
+    val box = android.graphics.RectF(
+        screenPoint.x - touchRadiusPx,
+        screenPoint.y - touchRadiusPx,
+        screenPoint.x + touchRadiusPx,
+        screenPoint.y + touchRadiusPx
+    )
+    val layerIds = BuiltInPeakLayerConfigs.keys.toTypedArray()
+    val features = map.queryRenderedFeatures(box, *layerIds)
+    val feature = features.firstOrNull() ?: return null
+
+    val name = feature.getStringProperty("name:latin")
+        ?: feature.getStringProperty("name")
+        ?: return null
+
+    // Elevation field differs per built-in layer ("ele" in metres vs. "ele_ft" for the "-us"
+    // layers), so check whichever one is actually present on this feature.
+    val elevationConfig = BuiltInPeakLayerConfigs.values.firstOrNull { config ->
+        feature.hasNonNullValueForProperty(config.elevationField)
+    }
+    val elevationText = elevationConfig?.let {
+        val value = feature.getNumberProperty(it.elevationField)
+        "$value${it.elevationUnitSuffix}"
+    }
+
+    val position = (feature.geometry() as? org.maplibre.geojson.Point)?.let {
+        LatLng(it.latitude(), it.longitude())
+    } ?: return null
+
+    return SelectedPeak(name = name, elevationText = elevationText, position = position)
+}
 
 /**
  * Draws a three-pointed crown ("|\/\/|"-style silhouette: two tall outer spikes, a shorter
@@ -178,6 +229,8 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
 
     var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
     var peaksVisible by remember { mutableStateOf(true) }
+    var selectedPeak by remember { mutableStateOf<SelectedPeak?>(null) }
+    var selectedPeakScreenPos by remember { mutableStateOf<Offset?>(null) }
 
     val mapView = remember {
         MapLibre.getInstance(context)
@@ -187,11 +240,26 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
                     .target(DefaultMapCenter)
                     .zoom(DefaultZoom)
                     .build()
+                map.addOnMapClickListener { latLng ->
+                    val screenPoint = map.projection.toScreenLocation(latLng)
+                    val peak = queryTappedPeak(map, screenPoint)
+                    selectedPeak = peak
+                    selectedPeakScreenPos = peak?.let {
+                        val p = map.projection.toScreenLocation(it.position)
+                        Offset(p.x, p.y)
+                    }
+                    peak != null
+                }
+                map.addOnCameraMoveListener {
+                    val peak = selectedPeak ?: return@addOnCameraMoveListener
+                    val p = map.projection.toScreenLocation(peak.position)
+                    selectedPeakScreenPos = Offset(p.x, p.y)
+                }
                 map.setStyle(maptilerStyleUrl(BuildConfig.MAPTILER_API_KEY)) { style ->
                     style.addImage(
                         PeakCrownIconId,
                         createCrownIcon(
-                            tintColor = Color.rgb(155, 112, 87),
+                            tintColor = Color.BLACK,
                             haloColor = Color.WHITE,
                             haloWidthPx = 6f,
                             sizePx = 72
@@ -223,6 +291,7 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
                             PropertyFactory.textAnchor(Property.TEXT_ANCHOR_TOP),
                             PropertyFactory.textOffset(arrayOf(0f, 0.6f)),
                             PropertyFactory.textSize(13f),
+                            PropertyFactory.textColor(Color.BLACK),
                             PropertyFactory.textHaloWidth(1.2f),
                             PropertyFactory.textAllowOverlap(true),
                             PropertyFactory.textIgnorePlacement(true)
@@ -349,6 +418,86 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
                     contentDescription = stringResource(R.string.explore_center_on_location)
                 )
             }
+        }
+
+        val peak = selectedPeak
+        val screenPos = selectedPeakScreenPos
+        if (peak != null && screenPos != null) {
+            val density = LocalDensity.current
+            val bubbleGapPx = with(density) { PeakBubbleMarkerGap.toPx() }
+            PeakSpeechBubble(
+                peak = peak,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        layout(placeable.width, placeable.height) {
+                            placeable.place(
+                                x = (screenPos.x - placeable.width / 2f).toInt(),
+                                y = (screenPos.y - bubbleGapPx).toInt() - placeable.height
+                            )
+                        }
+                    }
+            )
+        }
+    }
+}
+
+private val PeakBubbleMarkerGap = 28.dp
+private val PeakBubbleTailWidth = 16.dp
+private val PeakBubbleTailHeight = 8.dp
+private val PeakBubbleCornerRadius = 12.dp
+
+/**
+ * A speech-bubble card anchored above a peak marker: positioned so its tail tip sits at the
+ * marker's screen location (x-centered, offset up by [PeakBubbleMarkerGap] above the marker so
+ * the tail doesn't overlap the icon), with the bubble body growing upward from there.
+ */
+@Composable
+private fun PeakSpeechBubble(peak: SelectedPeak, modifier: Modifier = Modifier) {
+    val bubbleColor = MaterialTheme.colorScheme.surface
+    Column(
+        modifier = modifier
+            .drawBehind {
+                val cornerRadiusPx = PeakBubbleCornerRadius.toPx()
+                val tailWidthPx = PeakBubbleTailWidth.toPx()
+                val tailHeightPx = PeakBubbleTailHeight.toPx()
+                val bodyBottom = size.height - tailHeightPx
+
+                val path = ComposePath().apply {
+                    addRoundRect(
+                        androidx.compose.ui.geometry.RoundRect(
+                            left = 0f,
+                            top = 0f,
+                            right = size.width,
+                            bottom = bodyBottom,
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx, cornerRadiusPx)
+                        )
+                    )
+                    val tailCenterX = size.width / 2f
+                    moveTo(tailCenterX - tailWidthPx / 2f, bodyBottom)
+                    lineTo(tailCenterX, bodyBottom + tailHeightPx)
+                    lineTo(tailCenterX + tailWidthPx / 2f, bodyBottom)
+                    close()
+                }
+                drawPath(path, color = bubbleColor)
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(bottom = PeakBubbleTailHeight)
+    ) {
+        Text(
+            text = peak.name,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        if (peak.elevationText != null) {
+            Text(
+                text = stringResource(R.string.peak_detail_elevation, peak.elevationText),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
+            )
         }
     }
 }
