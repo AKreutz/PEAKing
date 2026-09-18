@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.peaking.ui.explore.ExploreScreen
+import com.example.peaking.ui.hike.HikeScreen
 import com.example.peaking.ui.mypeaks.MyPeaksScreen
 import com.example.peaking.ui.navigation.Destination
 import com.example.peaking.ui.navigation.bottomNavDestinations
@@ -50,9 +51,10 @@ fun PeakingNavHost() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Destination.Explore.route,
+            startDestination = Destination.Hike.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(Destination.Hike.route) { HikeScreen() }
             composable(Destination.Explore.route) { ExploreScreen() }
             composable(Destination.MyPeaks.route) { MyPeaksScreen() }
         }
