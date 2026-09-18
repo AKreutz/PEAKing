@@ -259,7 +259,7 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
                     style.addImage(
                         PeakCrownIconId,
                         createCrownIcon(
-                            tintColor = Color.BLACK,
+                            tintColor = Color.rgb(66, 66, 66),
                             haloColor = Color.WHITE,
                             haloWidthPx = 6f,
                             sizePx = 72
@@ -285,16 +285,20 @@ fun ExploreScreen(modifier: Modifier = Modifier) {
                         layer.setProperties(
                             PropertyFactory.iconImage(PeakCrownIconId),
                             PropertyFactory.iconSize(0.6f),
-                            PropertyFactory.iconAllowOverlap(true),
-                            PropertyFactory.iconIgnorePlacement(true),
+                            // Let MapLibre's collision detection hide overlapping icons/labels
+                            // instead of forcing every peak to render (allowOverlap = false), so
+                            // at low zoom only one marker per cluster of nearby peaks is shown.
+                            PropertyFactory.iconAllowOverlap(false),
+                            PropertyFactory.iconIgnorePlacement(false),
                             PropertyFactory.textField(peakTextFieldExpression(config)),
                             PropertyFactory.textAnchor(Property.TEXT_ANCHOR_TOP),
                             PropertyFactory.textOffset(arrayOf(0f, 0.6f)),
                             PropertyFactory.textSize(13f),
-                            PropertyFactory.textColor(Color.BLACK),
+                            PropertyFactory.textColor(Color.rgb(66, 66, 66)),
                             PropertyFactory.textHaloWidth(1.2f),
-                            PropertyFactory.textAllowOverlap(true),
-                            PropertyFactory.textIgnorePlacement(true)
+                            PropertyFactory.textAllowOverlap(false),
+                            PropertyFactory.textIgnorePlacement(false),
+                            PropertyFactory.textOptional(true)
                         )
 
                         // Move to the top of the draw stack so peak icons/labels always render
