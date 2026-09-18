@@ -17,7 +17,4 @@ interface VisitedPeakDao {
 
     @Delete
     suspend fun delete(peak: VisitedPeak)
-
-    @Query("DELETE FROM visited_peaks WHERE peakId = :peakId")
-    suspend fun deleteAllByPeakId(peakId: String)
 }

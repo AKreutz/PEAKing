@@ -27,11 +27,4 @@ class VisitedPeakRepository(context: Context) {
             )
         )
     }
-
-    /**
-     * Removes every recorded visit for this peak, so it goes back to being fully unvisited.
-     */
-    suspend fun markNotVisited(name: String, latitude: Double, longitude: Double) {
-        dao.deleteAllByPeakId(visitedPeakId(name, latitude, longitude))
-    }
 }

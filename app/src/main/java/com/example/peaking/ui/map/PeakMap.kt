@@ -15,15 +15,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Terrain
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Terrain
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -32,7 +29,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,7 +53,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.example.peaking.BuildConfig
 import com.example.peaking.data.peak.VisitedPeakRepository
 import com.example.peaking.data.peak.visitedPeakId
-import kotlinx.coroutines.launch
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -75,6 +70,8 @@ import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.Point as GeoJsonPoint
+import java.text.DateFormat
+import java.util.Date
 
 private val DefaultMapCenter = LatLng(47.3769, 8.5417) // Zurich, as a placeholder center
 private const val DefaultZoom = 10.0
@@ -268,10 +265,8 @@ fun PeakMap(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val coroutineScope = rememberCoroutineScope()
     val repository = remember { VisitedPeakRepository(context) }
     val visitedPeaks by repository.observeVisitedPeaks().collectAsState(initial = emptyList())
-    val visitedPeakIds = remember(visitedPeaks) { visitedPeaks.map { it.peakId }.toSet() }
 
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -566,19 +561,15 @@ fun PeakMap(
             val density = LocalDensity.current
             val bubbleGapPx = with(density) { PeakBubbleMarkerGap.toPx() }
             val peakId = remember(peak) { visitedPeakId(peak.name, peak.position.latitude, peak.position.longitude) }
-            val isVisited = visitedPeakIds.contains(peakId)
+            val visitDates = remember(peakId, visitedPeaks) {
+                visitedPeaks
+                    .filter { it.peakId == peakId }
+                    .map { it.visitDateEpochMillis }
+                    .sortedDescending()
+            }
             PeakSpeechBubble(
                 peak = peak,
-                isVisited = isVisited,
-                onToggleVisited = {
-                    coroutineScope.launch {
-                        if (isVisited) {
-                            repository.markNotVisited(peak.name, peak.position.latitude, peak.position.longitude)
-                        } else {
-                            repository.markVisited(peak.name, peak.position.latitude, peak.position.longitude)
-                        }
-                    }
-                },
+                visitDates = visitDates,
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .layout { measurable, constraints ->
@@ -608,11 +599,11 @@ private val PeakBubbleCornerRadius = 12.dp
 @Composable
 private fun PeakSpeechBubble(
     peak: SelectedPeak,
-    isVisited: Boolean,
-    onToggleVisited: () -> Unit,
+    visitDates: List<Long>,
     modifier: Modifier = Modifier
 ) {
     val bubbleColor = MaterialTheme.colorScheme.surface
+    val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
     Column(
         modifier = modifier
             .drawBehind {
@@ -656,19 +647,15 @@ private fun PeakSpeechBubble(
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
-        OutlinedButton(
-            onClick = onToggleVisited,
-            modifier = Modifier.padding(top = 8.dp)
-        ) {
-            Icon(
-                imageVector = if (isVisited) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                contentDescription = null,
-                modifier = Modifier.padding(end = 6.dp)
-            )
+        if (visitDates.isNotEmpty()) {
             Text(
                 text = stringResource(
-                    if (isVisited) R.string.peak_detail_visited else R.string.peak_detail_mark_visited
-                )
+                    R.string.peak_detail_visited_on,
+                    visitDates.joinToString(", ") { dateFormat.format(Date(it)) }
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
     }

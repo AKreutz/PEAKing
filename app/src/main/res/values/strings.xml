@@ -4,8 +4,7 @@
     <string name="explore_show_peaks">Show peak markers</string>
     <string name="explore_hide_peaks">Hide peak markers</string>
     <string name="peak_detail_elevation">Elevation: %1$s</string>
-    <string name="peak_detail_mark_visited">Mark as visited</string>
-    <string name="peak_detail_visited">Visited</string>
+    <string name="peak_detail_visited_on">Visited: %1$s</string>
     <string name="my_peaks_empty">You haven\'t marked any peaks as visited yet.</string>
     <string name="hike_go_on_a_hike">Go on a Hike</string>
     <string name="hike_finish_hike">Finish Hike</string>
