@@ -61,6 +61,7 @@ import org.maplibre.android.location.LocationComponentActivationOptions
 import org.maplibre.android.location.modes.CameraMode
 import org.maplibre.android.location.modes.RenderMode
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.Property
@@ -309,7 +310,11 @@ fun PeakMap(
 
     val mapView = remember {
         MapLibre.getInstance(context)
-        MapView(context).apply {
+        // TextureView instead of the default GLSurfaceView: a SurfaceView renders into its own
+        // window layer outside normal view z-ordering, so switching away from this tab could
+        // leave a stale map frame briefly compositing on top of the next tab's content.
+        // TextureView is an ordinary View and composites in-order, avoiding that overlay glitch.
+        MapView(context, MapLibreMapOptions.createFromAttributes(context, null).textureMode(true)).apply {
             getMapAsync { map ->
                 map.cameraPosition = CameraPosition.Builder()
                     .target(DefaultMapCenter)
