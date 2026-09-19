@@ -14,13 +14,13 @@ val localProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.example.peaking"
+    namespace = "com.akreutz.peaking"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.peaking"
+        applicationId = "com.akreutz.peaking"
         minSdk = 24
         targetSdk = 37
         versionCode = 1
@@ -49,6 +49,9 @@ android {
                 enable = false
             }
             signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            applicationIdSuffix = ".debug"
         }
     }
     compileOptions {
