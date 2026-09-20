@@ -112,6 +112,9 @@ fun HikeScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val repository = remember { VisitedPeakRepository(context) }
+    // Resolved during composition (not via context.getString in the click handler below) so a
+    // configuration change invalidates and re-resolves it, per stringResource's contract.
+    val noPeaksMessage = stringResource(R.string.hike_finish_no_peaks_message)
 
     fun discardHike() {
         hikeStarted = false
@@ -161,7 +164,7 @@ fun HikeScreen(
                         if (selectedPeaks.isEmpty()) {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.hike_finish_no_peaks_message),
+                                noPeaksMessage,
                                 Toast.LENGTH_SHORT
                             ).show()
                         } else {
